@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML Artifacts
+ml/data/raw/
+ml/data/processed/
+ml/data/synthetic/
+ml/models/lightgbm/*.pkl
+ml/models/lightgbm/*.bin
+ml/models/autoencoder/*.pt
+ml/models/autoencoder/*.pth
+ml/models/isolation_forest/*.pkl
+ml/models/onnx/*.onnx
+mlruns/
+mlflow.db
+
+# Node / React
+node_modules/
+frontend/dist/
+frontend/build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Testing
+coverage/
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/*.tfvars
+infra/terraform/.terraform.lock.hcl
+
+# Misc
+*.bak
+*.tmp
+.cache/

@@ -1,0 +1,83 @@
+# ============================================================
+# FraudLens — Local Development Infrastructure
+# ------------------------------------------------------------
+# Starts 3 services:
+#   1. PostgreSQL   — primary database (port 5432)
+#   2. Redis        — streams, cache, feature store (port 6379)
+#   3. Adminer      — visual database UI (port 8080)
+#
+# Your code runs OUTSIDE Docker for fast hot-reload:
+#   Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+#   Frontend: cd frontend && npm run dev
+#
+# Commands:
+#   Start:   docker compose up -d
+#   Stop:    docker compose down
+#   Logs:    docker compose logs -f
+#   Reset:   docker compose down -v  (WARNING: deletes all data)
+# ============================================================
+services:
+  # ── 1. PostgreSQL ──────────────────────────────────────────
+  # Primary database for transactions, users, feedback, metrics
+  # Connection: postgresql://fraudlens:localdev123@localhost:5432/fraudlens
+  postgres:
+    image: postgres:16-alpine
+    container_name: fraudlens_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: fraudlens
+      POSTGRES_USER: fraudlens
+      POSTGRES_PASSWORD: localdev123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fraudlens -d fraudlens"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── 2. Redis ───────────────────────────────────────────────
+  # Transaction streams, real-time feature store, caching
+  # Events flow: Generator → Redis Stream → ML Scoring → PostgreSQL
+  redis:
+    image: redis:7-alpine
+    container_name: fraudlens_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ── 3. Adminer ─────────────────────────────────────────────
+  # Visual database UI — open http://localhost:8080 in browser
+  # Login details:
+  #   System:   PostgreSQL
+  #   Server:   postgres
+  #   Username: fraudlens
+  #   Password: localdev123
+  #   Database: fraudlens
+  adminer:
+    image: adminer:latest
+    container_name: fraudlens_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+# ── Named Volumes ───────────────────────────────────────────
+# Docker manages these — your data persists between restarts
+volumes:
+  postgres_data:
+  redis_data:
