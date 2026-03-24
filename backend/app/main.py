@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.db.session import engine
 
 
 # ── Lifespan (startup / shutdown) ────────────────────────
@@ -36,6 +37,16 @@ async def lifespan(app: FastAPI):
 
     # Store startup time for uptime tracking
     app.state.started_at = datetime.now(timezone.utc)
+
+    # Test Database connection
+    try:
+        from sqlalchemy import text
+
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        print("✅ PostgreSQL connected")
+    except Exception as e:
+        print(f"❌ PostgreSQL connection failed: {e}")
 
     yield
 
@@ -92,7 +103,7 @@ async def health_check():
         "environment": settings.ENVIRONMENT,
         "services": {
             "redis": redis_status,
-            "database": "pending",  # Will be added in Phase 2
+            "database": "connected",  # Will be added in Phase 2
             "ml_model": "not_loaded",  # Will be added in Phase 4
         },
         "uptime_seconds": int(uptime),
