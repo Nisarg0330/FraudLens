@@ -119,3 +119,27 @@ async def root():
         "docs": "/docs",
         "health": "/api/v1/health",
     }
+
+# ── Test Feature Store (temporary — remove in production) ─
+@app.get("/api/v1/test/features/{user_id}", tags=["Testing"])
+async def test_features(user_id: str):
+    """
+    Temporary endpoint to test the feature store.
+    Remove this before production.
+    """
+    from app.db.redis import get_redis
+    from app.services.feature_service import FeatureService
+
+    redis = await get_redis()
+    feature_service = FeatureService(redis)
+
+    # Simulate updating features
+    features = await feature_service.compute_transaction_features(
+        user_id=user_id,
+        amount=125.50,
+        latitude=43.7315,
+        longitude=-79.7624,
+        avg_transaction_amount=87.50,
+    )
+    await redis.close()
+    return {"user_id": user_id, "features": features}
