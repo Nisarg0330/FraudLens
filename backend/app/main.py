@@ -72,7 +72,15 @@ app.add_middleware(
 from app.api.health import router as health_router
 from app.api.transactions import router as transactions_router
 from app.api.feedback import router as feedback_router
+from app.api.analytics import router as analytics_router
+from app.api.alerts import router as alerts_router
+from app.api.model_health import router as model_health_router
+from app.api.websocket import router as websocket_router
 
 app.include_router(health_router)
 app.include_router(transactions_router)
 app.include_router(feedback_router)
+app.include_router(analytics_router)
+app.include_router(alerts_router)
+app.include_router(model_health_router)
+app.include_router(websocket_router)
