@@ -10,52 +10,43 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.db.session import engine
 
 
-# ── Lifespan (startup / shutdown) ────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Runs on startup and shutdown.
-    Startup: verify database and Redis connections.
-    Shutdown: close connections cleanly.
-    """
-    # ── Startup ──────────────────────────────────────────
-    print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    print(f"📍 Environment: {settings.ENVIRONMENT}")
+    """Startup and shutdown logic."""
+    print(f"\U0001f680 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    print(f"\U0001f4cd Environment: {settings.ENVIRONMENT}")
 
-    # Test Redis connection
+    # Redis
     try:
         redis_client = aioredis.from_url(settings.REDIS_URL)
         await redis_client.ping()
         app.state.redis = redis_client
-        print("✅ Redis connected")
+        print("\u2705 Redis connected")
     except Exception as e:
-        print(f"❌ Redis connection failed: {e}")
+        print(f"\u274c Redis connection failed: {e}")
         app.state.redis = None
 
-    # Store startup time for uptime tracking
-    app.state.started_at = datetime.now(timezone.utc)
-
-    # Test Database connection
+    # PostgreSQL
     try:
         from sqlalchemy import text
+        from app.db.session import engine
 
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        print("✅ PostgreSQL connected")
+        print("\u2705 PostgreSQL connected")
     except Exception as e:
-        print(f"❌ PostgreSQL connection failed: {e}")
+        print(f"\u274c PostgreSQL connection failed: {e}")
+
+    app.state.started_at = datetime.now(timezone.utc)
 
     yield
 
-    # ── Shutdown ─────────────────────────────────────────
     if app.state.redis:
         await app.state.redis.close()
-        print("🔌 Redis connection closed")
-
-    print(f"👋 {settings.APP_NAME} shut down")
+        print("\U0001f50c Redis connection closed")
+    print(f"\U0001f44b {settings.APP_NAME} shut down")
 
 
 # ── Create App ───────────────────────────────────────────
@@ -68,7 +59,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── CORS (allow frontend to connect) ────────────────────
+# ── CORS ─────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173"],
@@ -77,69 +68,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Register Routers ─────────────────────────────────────
+from app.api.health import router as health_router
+from app.api.transactions import router as transactions_router
+from app.api.feedback import router as feedback_router
 
-# ── Health Check ─────────────────────────────────────────
-@app.get("/api/v1/health", tags=["System"])
-async def health_check():
-    """
-    System health check — verifies all services are connected.
-    No authentication required.
-    """
-    # Check Redis
-    redis_status = "disconnected"
-    if app.state.redis:
-        try:
-            await app.state.redis.ping()
-            redis_status = "connected"
-        except Exception:
-            redis_status = "error"
-
-    # Calculate uptime
-    uptime = (datetime.now(timezone.utc) - app.state.started_at).total_seconds()
-
-    return {
-        "status": "healthy" if redis_status == "connected" else "degraded",
-        "version": settings.APP_VERSION,
-        "environment": settings.ENVIRONMENT,
-        "services": {
-            "redis": redis_status,
-            "database": "connected",  # Will be added in Phase 2
-            "ml_model": "not_loaded",  # Will be added in Phase 4
-        },
-        "uptime_seconds": int(uptime),
-    }
-
-
-# ── Root Redirect ────────────────────────────────────────
-@app.get("/", tags=["System"])
-async def root():
-    return {
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "docs": "/docs",
-        "health": "/api/v1/health",
-    }
-
-# ── Test Feature Store (temporary — remove in production) ─
-@app.get("/api/v1/test/features/{user_id}", tags=["Testing"])
-async def test_features(user_id: str):
-    """
-    Temporary endpoint to test the feature store.
-    Remove this before production.
-    """
-    from app.db.redis import get_redis
-    from app.services.feature_service import FeatureService
-
-    redis = await get_redis()
-    feature_service = FeatureService(redis)
-
-    # Simulate updating features
-    features = await feature_service.compute_transaction_features(
-        user_id=user_id,
-        amount=125.50,
-        latitude=43.7315,
-        longitude=-79.7624,
-        avg_transaction_amount=87.50,
-    )
-    await redis.close()
-    return {"user_id": user_id, "features": features}
+app.include_router(health_router)
+app.include_router(transactions_router)
+app.include_router(feedback_router)
